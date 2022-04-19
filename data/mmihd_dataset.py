@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 import torchvision.transforms.functional as tf
 from PIL import Image
 from d2l import torch as d2l
+import clip
 
 from data.base_dataset import BaseDataset
 
@@ -47,14 +48,12 @@ class MMIhdDataset(BaseDataset):
         self.image_paths = []
         self.isTrain = opt.isTrain
         self.image_size = opt.crop_size
-        self.max_len = 128
-        self.vocab = opt.vocab
 
         # Load text features
-        img_caption_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
+        self.img_caption_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
         # Make sure to change it
-        img_reg_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
-        self.img_text_feat_dic = self._preprocess(img_caption_dic, img_reg_dic)
+        self.img_reg_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
+        self.text_model, _ = clip.load("ViT-B/32", device='cpu')
 
         if opt.isTrain:
             # self.real_ext='.jpg'
@@ -111,7 +110,11 @@ class MMIhdDataset(BaseDataset):
         comp = Image.open(path).convert('RGB')
         real = Image.open(target_path).convert('RGB')
         mask = Image.open(mask_path).convert('1')
-        tokens, segments, valid_len = self.img_text_feat_dic[img_name]
+
+        tokens = clip.tokenize([self.img_caption_dic[img_name], self.img_reg_dic[img_name]])
+        text_features = self.text_model.encode_text(tokens).reshape(-1, 256)
+        generated = torch.autograd.Variable(text_features, requires_grad=False)
+        text_features = generated.data
 
         if np.random.rand() > 0.5 and self.isTrain:
             comp, mask, real = tf.hflip(comp), tf.hflip(mask), tf.hflip(real)
@@ -134,7 +137,7 @@ class MMIhdDataset(BaseDataset):
 
         return {'inputs': inputs, 'comp': comp, 'real': real,
                 'img_path': path, 'mask': mask, 'tokens': tokens,
-                'segments': segments, 'valid_len': valid_len}
+                'text_feat': text_features}
 
     def __len__(self):
         """Return the total number of images."""

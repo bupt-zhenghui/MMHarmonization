@@ -1,6 +1,7 @@
 import math
 import json
 from d2l import torch as d2l
+import clip
 
 import torch.nn as nn
 from einops.layers.torch import Rearrange
@@ -53,12 +54,9 @@ class MMHTGenerator(nn.Module):
         self.illumination_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_dim, opt.output_nc, opt.ngf, 'ln',
                                                opt.activ, pad_type=opt.pad_type)
         self.opt = opt
-        self.bert, self.vocab = load_pretrained_model('bert.small', num_hiddens=256, ffn_num_hiddens=512, num_heads=4,
-                                                      num_layers=2, dropout=0.1, max_len=512, devices=[d2l.try_gpu()])
-        self.text_net = BERTClassifier(self.bert)
 
     def forward(self, inputs=None, image=None, pixel_pos=None, patch_pos=None, mask_r=None, mask=None,
-                tokens=None, segments=None, valid_len=None, layers=[], encode_only=False):
+                tokens=None, text_feat=None, layers=[], encode_only=False):
         # print('inputs shape: ', inputs.shape)
         r_content = self.reflectance_enc(inputs)
         # print('r_content shape: ', r_content.shape)
@@ -68,14 +66,12 @@ class MMHTGenerator(nn.Module):
         reflectance = self.reflectance_transformer_enc(r_content.flatten(2).permute(2, 0, 1), src_pos=pixel_pos,
                                                        src_key_padding_mask=None)
         # print('reflectance shape: ', reflectance.shape)
-        light_code, light_embed = self.light_generator(image, pos=patch_pos, mask=mask,
-                                                       use_mask=self.opt.light_use_mask)
+        _, light_embed = self.light_generator(image, pos=patch_pos, mask=mask,
+                                              use_mask=self.opt.light_use_mask)
         # print('light_code shape: ', light_code.shape)
         # print('light_embed shape: ', light_embed.shape)
 
-        text_feat = self.text_net((tokens, segments, valid_len)).permute(1, 0, 2)
-        # print('text feature shape:', text_feat.shape)
-
+        text_feat = text_feat.permute(1, 0, 2)
         illumination = self.illumination_render(text_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)
         # print('illumination shape: ', illumination.shape)
@@ -186,13 +182,13 @@ class DHTGenerator(nn.Module):
         # print('light_embed shape: ', light_embed.shape)
         illumination = self.illumination_render(light_code, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)
-        print('illumination shape: ', illumination.shape)
+        # print('illumination shape: ', illumination.shape)
         reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
         reflectance = self.reflectance_dec(reflectance)
         reflectance = reflectance / 2 + 0.5
 
         illumination = illumination.permute(1, 2, 0).view(bs, c, h, w)
-        print('illumination permute: ', illumination.shape)
+        # print('illumination permute: ', illumination.shape)
         illumination = self.illumination_dec(illumination)
         illumination = illumination / 2 + 0.5
 

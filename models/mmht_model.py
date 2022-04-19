@@ -65,8 +65,7 @@ class mmhtModel(BaseModel):
         self.mask_r = F.interpolate(self.mask, size=[64, 64])
         self.revert_mask = 1 - self.mask
         self.tokens = input['tokens'].to(self.device)
-        self.segments = input['segments'].to(self.device)
-        self.valid_len = input['valid_len'].to(self.device)
+        self.text_feat = input['text_feat'].to(self.device)
 
     def data_dependent_initialize(self, data):
         pass
@@ -83,8 +82,7 @@ class mmhtModel(BaseModel):
                                                                          pixel_pos=self.pixel_pos.detach(),
                                                                          patch_pos=self.patch_pos.detach(),
                                                                          mask_r=self.mask_r, mask=self.mask,
-                                                                         tokens=self.tokens, segments=self.segments,
-                                                                         valid_len=self.valid_len)
+                                                                         tokens=self.tokens, text_feat=self.text_feat)
         if not self.isTrain:
             self.harmonized = self.comp * (1 - self.mask) + self.harmonized * self.mask
 
