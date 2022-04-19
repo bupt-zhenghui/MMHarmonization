@@ -68,10 +68,10 @@ def create_dataset(opt):
     print("dataset [%s] was created" % type(dataset).__name__)
 
     # batch_size = int(opt.batch_size / max(1, opt.NUM_GPUS))
-    if opt.isTrain == True:
+    if opt.isTrain:
         shuffle = True
         drop_last = True
-    elif opt.isTrain == False:
+    elif not opt.isTrain:
         shuffle = False
         drop_last = False
 

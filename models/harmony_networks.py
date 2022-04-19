@@ -1,4 +1,6 @@
 import math
+import json
+from d2l import torch as d2l
 
 import torch.nn as nn
 from einops.layers.torch import Rearrange
@@ -17,11 +19,77 @@ def define_G(netG='retinex', init_type='normal', init_gain=0.02, opt=None):
         net = HTGenerator(opt)
     elif netG == 'DHT':
         net = DHTGenerator(opt)
+    elif netG == 'MMHT':
+        net = MMHTGenerator(opt)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     net = networks_init.init_weights(net, init_type, init_gain)
     net = networks_init.build_model(opt, net)
     return net
+
+
+class MMHTGenerator(nn.Module):
+    def __init__(self, opt=None):
+        super(MMHTGenerator, self).__init__()
+        self.reflectance_dim = 256
+        self.device = opt.device
+        self.reflectance_enc = ContentEncoder(opt.n_downsample, 0, opt.input_nc + 1, self.reflectance_dim, opt.ngf,
+                                              'in', opt.activ, pad_type=opt.pad_type)
+        self.reflectance_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_enc.output_dim, opt.output_nc,
+                                              opt.ngf, 'ln', opt.activ, pad_type=opt.pad_type)
+
+        self.reflectance_transformer_enc = transformer.TransformerEncoders(self.reflectance_dim,
+                                                                           nhead=opt.tr_r_enc_head,
+                                                                           num_encoder_layers=opt.tr_r_enc_layers,
+                                                                           dim_feedforward=self.reflectance_dim * opt.dim_forward,
+                                                                           activation=opt.tr_act)
+
+        self.light_generator = GlobalLighting(light_element=opt.light_element, light_mlp_dim=self.reflectance_dim,
+                                              opt=opt)
+        self.illumination_render = transformer.TransformerDecoders(self.reflectance_dim, nhead=opt.tr_i_dec_head,
+                                                                   num_decoder_layers=opt.tr_i_dec_layers,
+                                                                   dim_feedforward=self.reflectance_dim * opt.dim_forward,
+                                                                   activation=opt.tr_act)
+        self.illumination_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_dim, opt.output_nc, opt.ngf, 'ln',
+                                               opt.activ, pad_type=opt.pad_type)
+        self.opt = opt
+        self.bert, self.vocab = load_pretrained_model('bert.small', num_hiddens=256, ffn_num_hiddens=512, num_heads=4,
+                                                      num_layers=2, dropout=0.1, max_len=512, devices=[d2l.try_gpu()])
+        self.text_net = BERTClassifier(self.bert)
+
+    def forward(self, inputs=None, image=None, pixel_pos=None, patch_pos=None, mask_r=None, mask=None,
+                tokens=None, segments=None, valid_len=None, layers=[], encode_only=False):
+        # print('inputs shape: ', inputs.shape)
+        r_content = self.reflectance_enc(inputs)
+        # print('r_content shape: ', r_content.shape)
+        bs, c, h, w = r_content.size()
+
+        # print('before feed shape: ', r_content.flatten(2).permute(2, 0, 1).shape)
+        reflectance = self.reflectance_transformer_enc(r_content.flatten(2).permute(2, 0, 1), src_pos=pixel_pos,
+                                                       src_key_padding_mask=None)
+        # print('reflectance shape: ', reflectance.shape)
+        light_code, light_embed = self.light_generator(image, pos=patch_pos, mask=mask,
+                                                       use_mask=self.opt.light_use_mask)
+        # print('light_code shape: ', light_code.shape)
+        # print('light_embed shape: ', light_embed.shape)
+
+        text_feat = self.text_net((tokens, segments, valid_len)).permute(1, 0, 2)
+        # print('text feature shape:', text_feat.shape)
+
+        illumination = self.illumination_render(text_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
+                                                src_key_padding_mask=None, tgt_key_padding_mask=None)
+        # print('illumination shape: ', illumination.shape)
+        reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
+        reflectance = self.reflectance_dec(reflectance)
+        reflectance = reflectance / 2 + 0.5
+
+        illumination = illumination.permute(1, 2, 0).view(bs, c, h, w)
+        # print('illumination permute: ', illumination.shape)
+        illumination = self.illumination_dec(illumination)
+        illumination = illumination / 2 + 0.5
+
+        harmonized = reflectance * illumination
+        return harmonized, reflectance, illumination
 
 
 class HTGenerator(nn.Module):
@@ -132,8 +200,39 @@ class DHTGenerator(nn.Module):
         return harmonized, reflectance, illumination
 
 
+def load_pretrained_model(pretrained_model, num_hiddens, ffn_num_hiddens,
+                          num_heads, num_layers, dropout, max_len, devices):
+    data_dir = '../data/bert.small.torch'
+    vocab = d2l.Vocab()
+    vocab.idx_to_token = json.load(open(os.path.join(data_dir,
+                                                     'vocab.json')))
+    vocab.token_to_idx = {token: idx for idx, token in enumerate(
+        vocab.idx_to_token)}
+    bert = d2l.BERTModel(len(vocab), num_hiddens, norm_shape=[256],
+                         ffn_num_input=256, ffn_num_hiddens=ffn_num_hiddens,
+                         num_heads=4, num_layers=2, dropout=0.2,
+                         max_len=max_len, key_size=256, query_size=256,
+                         value_size=256, hid_in_features=256,
+                         mlm_in_features=256, nsp_in_features=256)
+    bert.load_state_dict(torch.load(os.path.join(data_dir,
+                                                 'pretrained.params')))
+    return bert, vocab
+
+
+class BERTClassifier(nn.Module):
+    def __init__(self, bert):
+        super(BERTClassifier, self).__init__()
+        self.encoder = bert.encoder
+        self.hidden = bert.hidden
+
+    def forward(self, inputs):
+        tokens_X, segments_X, valid_lens_x = inputs
+        encoded_X = self.encoder(tokens_X, segments_X, valid_lens_x)
+        return self.hidden(encoded_X)
+
+
 class GlobalLighting(nn.Module):
-    def __init__(self, light_element=27, light_mlp_dim=8, norm=None, activ=None, pad_type='zero', opt=None):
+    def __init__(self, light_element=128, light_mlp_dim=8, norm=None, activ=None, pad_type='zero', opt=None):
 
         super(GlobalLighting, self).__init__()
         self.light_with_tre = opt.light_with_tre

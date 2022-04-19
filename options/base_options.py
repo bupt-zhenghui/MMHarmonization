@@ -21,7 +21,8 @@ class BaseOptions():
         """Define the common options that are used in both training and test."""
 
         parser.add_argument('--dataset_name', type=str, default='IHD', help='path to our dataset IHD')
-        parser.add_argument('--dataset_root', type=str, default='../../datasets/ihd_datasets/all/',
+        parser.add_argument('--dataset_root', type=str, default='/raid_sdc/home/wzh/2022/Image_Harmonization_Dataset'
+                                                                '/HAdobe5k/',
                             help='path to our dataset IHD')
         parser.add_argument('--name', type=str, default='experiment_name',
                             help='name of the experiment. It decides where to store samples and models')
@@ -84,7 +85,7 @@ class BaseOptions():
         parser.add_argument('--activ', type=str, default='lrelu', help='activ')
 
         parser.add_argument('--light_mlp_dim', type=int, default=1, help='resblocks')
-        parser.add_argument('--light_element', type=int, default=27, help='resblocks')
+        parser.add_argument('--light_element', type=int, default=128, help='resblocks')
         parser.add_argument('--illumination_n_res', type=int, default=4, help='attention patch size')
 
         parser.add_argument('--gradient_loss', action='store_true', help="reflectance use nce(H,R)")
