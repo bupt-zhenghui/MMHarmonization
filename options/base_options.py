@@ -85,7 +85,7 @@ class BaseOptions():
         parser.add_argument('--activ', type=str, default='lrelu', help='activ')
 
         parser.add_argument('--light_mlp_dim', type=int, default=1, help='resblocks')
-        parser.add_argument('--light_element', type=int, default=4, help='resblocks')
+        parser.add_argument('--light_element', type=int, default=8, help='resblocks')
         parser.add_argument('--illumination_n_res', type=int, default=4, help='attention patch size')
 
         parser.add_argument('--gradient_loss', action='store_true', help="reflectance use nce(H,R)")

@@ -33,58 +33,54 @@ class MMHTGenerator(nn.Module):
     def __init__(self, opt=None):
         super(MMHTGenerator, self).__init__()
         self.reflectance_dim = 256
-        self.device = opt.device
         self.reflectance_enc = ContentEncoder(opt.n_downsample, 0, opt.input_nc + 1, self.reflectance_dim, opt.ngf,
                                               'in', opt.activ, pad_type=opt.pad_type)
-        self.reflectance_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_enc.output_dim, opt.output_nc,
-                                              opt.ngf, 'ln', opt.activ, pad_type=opt.pad_type)
+        # self.reflectance_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_enc.output_dim, opt.output_nc,
+        #                                       opt.ngf, 'ln', opt.activ, pad_type=opt.pad_type)
 
         self.reflectance_transformer_enc = transformer.TransformerEncoders(self.reflectance_dim,
                                                                            nhead=opt.tr_r_enc_head,
                                                                            num_encoder_layers=opt.tr_r_enc_layers,
                                                                            dim_feedforward=self.reflectance_dim * opt.dim_forward,
                                                                            activation=opt.tr_act)
+        self.clip_feature = ClipFeature(light_element=opt.light_element, light_mlp_dim=self.reflectance_dim)
 
-        self.light_generator = GlobalLighting(light_element=opt.light_element, light_mlp_dim=self.reflectance_dim,
-                                              opt=opt)
         self.illumination_render = transformer.TransformerDecoders(self.reflectance_dim, nhead=opt.tr_i_dec_head,
                                                                    num_decoder_layers=opt.tr_i_dec_layers,
                                                                    dim_feedforward=self.reflectance_dim * opt.dim_forward,
                                                                    activation=opt.tr_act)
         self.illumination_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_dim, opt.output_nc, opt.ngf, 'ln',
                                                opt.activ, pad_type=opt.pad_type)
+        self.clip_linear = nn.Sequential(
+            nn.Linear(512, 1024),
+            nn.ReLU()
+        )
         self.opt = opt
 
     def forward(self, inputs=None, image=None, pixel_pos=None, patch_pos=None, mask_r=None, mask=None,
-                tokens=None, text_feat=None, layers=[], encode_only=False):
-        # print('inputs shape: ', inputs.shape)
+                img_feat=None, layers=[], encode_only=False):
         r_content = self.reflectance_enc(inputs)
-        # print('r_content shape: ', r_content.shape)
         bs, c, h, w = r_content.size()
 
-        # print('before feed shape: ', r_content.flatten(2).permute(2, 0, 1).shape)
         reflectance = self.reflectance_transformer_enc(r_content.flatten(2).permute(2, 0, 1), src_pos=pixel_pos,
                                                        src_key_padding_mask=None)
-        # print('reflectance shape: ', reflectance.shape)
-        _, light_embed = self.light_generator(image, pos=patch_pos, mask=mask,
-                                              use_mask=self.opt.light_use_mask)
-        # print('light_code shape: ', light_code.shape)
-        # print('light_embed shape: ', light_embed.shape)
 
-        text_feat = text_feat.permute(1, 0, 2)
-        illumination = self.illumination_render(text_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
+        light_embed = self.clip_feature(image)
+
+        img_feat = self.clip_linear(img_feat).reshape(-1, 8, 256).permute(1, 0, 2)
+        illumination = self.illumination_render(img_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)
         # print('illumination shape: ', illumination.shape)
-        reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
-        reflectance = self.reflectance_dec(reflectance)
-        reflectance = reflectance / 2 + 0.5
+        # reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
+        # reflectance = self.reflectance_dec(reflectance)
+        # reflectance = reflectance / 2 + 0.5
 
         illumination = illumination.permute(1, 2, 0).view(bs, c, h, w)
         # print('illumination permute: ', illumination.shape)
         illumination = self.illumination_dec(illumination)
-        illumination = illumination / 2 + 0.5
+        # illumination = illumination / 2 + 0.5
 
-        harmonized = reflectance * illumination
+        harmonized = reflectance = illumination
         return harmonized, reflectance, illumination
 
 
@@ -175,7 +171,7 @@ class DHTGenerator(nn.Module):
         # print('before feed shape: ', r_content.flatten(2).permute(2, 0, 1).shape)
         reflectance = self.reflectance_transformer_enc(r_content.flatten(2).permute(2, 0, 1), src_pos=pixel_pos,
                                                        src_key_padding_mask=None)
-        # print('reflectance shape: ', reflectance.shape)
+
         light_code, light_embed = self.light_generator(image, pos=patch_pos, mask=mask,
                                                        use_mask=self.opt.light_use_mask)
         # print('light_code shape: ', light_code.shape)
@@ -273,19 +269,24 @@ class GlobalLighting(nn.Module):
             src_key_padding_mask = mask_sum.to(bool)
             print('key_padding shape: ', src_key_padding_mask.shape)
 
-        # print('\n\nhere: ')
-        # print('input patch shape: ', input_patch.shape)
-        # print('tgt shape: ', tgt.shape)
-        # print('pos shape: ', pos.shape)
-        # print('tgt position shape: ', light_embed.shape)
-        # print('key_padding mask: ', src_key_padding_mask.shape)
-
         if self.light_with_tre:
             input_patch = self.transformer_enc(input_patch, src_pos=pos, src_key_padding_mask=src_key_padding_mask)
         light = self.transformer_dec(input_patch, tgt, src_pos=pos, tgt_pos=light_embed,
                                      src_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=None)
         # print('light shape: ', light.shape)
         return light, light_embed
+
+
+class ClipFeature(nn.Module):
+    def __init__(self, light_element=128, light_mlp_dim=8):
+        super(ClipFeature, self).__init__()
+        dim = light_mlp_dim
+        self.light_embed = nn.Embedding(light_element, dim)
+
+    def forward(self, inputs):
+        b, c, h, w = inputs.size()
+        light_embed = self.light_embed.weight.unsqueeze(1).repeat(1, b, 1)  # [27, 2, 256]
+        return light_embed
 
 
 class ContentEncoder(nn.Module):

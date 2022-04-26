@@ -14,6 +14,9 @@ def main():
 
     cfg.phase = 'test'
     cfg.batch_size = int(cfg.batch_size / max(1, cfg.NUM_GPUS))
+    if not torch.cuda.is_available():
+        cfg.dataset_root = "/Users/zhenghui/Downloads/Image_Harmonization_Dataset/HAdobe5k/"
+
     launch_job(cfg=cfg, init_method=cfg.init_method, func=test)
 
 

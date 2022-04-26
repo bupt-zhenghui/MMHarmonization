@@ -50,10 +50,10 @@ class MMIhdDataset(BaseDataset):
         self.image_size = opt.crop_size
 
         # Load text features
-        self.img_caption_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
+        # self.img_caption_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
         # Make sure to change it
-        self.img_reg_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
-        self.text_model, _ = clip.load("ViT-B/32", device='cpu')
+        # self.img_reg_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
+        self.clip_model, self.preprocess = clip.load("ViT-B/32", device='cpu')
 
         if opt.isTrain:
             # self.real_ext='.jpg'
@@ -111,10 +111,17 @@ class MMIhdDataset(BaseDataset):
         real = Image.open(target_path).convert('RGB')
         mask = Image.open(mask_path).convert('1')
 
-        tokens = clip.tokenize([self.img_caption_dic[img_name], self.img_reg_dic[img_name]])
-        text_features = self.text_model.encode_text(tokens).reshape(-1, 256)
-        generated = torch.autograd.Variable(text_features, requires_grad=False)
-        text_features = generated.data
+        clip_image = self.preprocess(Image.open(path)).unsqueeze(0)
+        image_features = self.clip_model.encode_image(clip_image)
+        generated = torch.autograd.Variable(image_features, requires_grad=False)
+        image_features = generated.data
+        fg_features = image_features
+        img_features = torch.cat([image_features, fg_features], 0)
+
+        # tokens = clip.tokenize([self.img_caption_dic[img_name], self.img_reg_dic[img_name]])
+        # text_features = self.text_model.encode_text(tokens).reshape(-1, 256)
+        # generated = torch.autograd.Variable(text_features, requires_grad=False)
+        # text_features = generated.data
 
         if np.random.rand() > 0.5 and self.isTrain:
             comp, mask, real = tf.hflip(comp), tf.hflip(mask), tf.hflip(real)
@@ -136,47 +143,8 @@ class MMIhdDataset(BaseDataset):
         inputs = torch.cat([comp, mask], 0)
 
         return {'inputs': inputs, 'comp': comp, 'real': real,
-                'img_path': path, 'mask': mask, 'tokens': tokens,
-                'text_feat': text_features}
+                'img_path': path, 'mask': mask, 'img_feat': img_features}
 
     def __len__(self):
         """Return the total number of images."""
         return len(self.image_paths)
-
-    def read_data(self, path):
-        img_caption_dic = {}
-        with open(path, 'r') as f:
-            line = f.readline()
-            while line:
-                img_name, caption = line.split(':')
-                img_caption_dic[img_name] = caption
-                line = f.readline()
-        return img_caption_dic
-
-    def _preprocess(self, c_dic, r_dic):
-        img_text_feat_dic = {}
-        for img, caption_sentence in c_dic.items():
-            caption_token = d2l.tokenize([caption_sentence.lower()])[0]
-
-            reg_token = d2l.tokenize([r_dic[img].lower()])[0]
-            token_ids, segments, valid_len = self._tokenize(caption_token, reg_token)
-            img_text_feat_dic[img] = (torch.tensor(token_ids, dtype=torch.long),
-                                      torch.tensor(segments, dtype=torch.long),
-                                      torch.tensor(valid_len))
-        return img_text_feat_dic
-
-    def _truncate_pair_of_tokens(self, p_tokens, h_tokens):
-        # 为BERT输入中的'<CLS>'、'<SEP>'和'<SEP>'词元保留位置
-        while len(p_tokens) + len(h_tokens) > self.max_len - 3:
-            if len(p_tokens) > len(h_tokens):
-                p_tokens.pop()
-            else:
-                h_tokens.pop()
-
-    def _tokenize(self, c_tokens, r_tokens):
-        self._truncate_pair_of_tokens(c_tokens, r_tokens)
-        tokens, segments = d2l.get_tokens_and_segments(c_tokens, r_tokens)
-        token_ids = self.vocab[tokens] + [self.vocab['<pad>']] * (self.max_len - len(tokens))
-        segments = segments + [0] * (self.max_len - len(segments))
-        valid_len = len(tokens)
-        return token_ids, segments, valid_len
