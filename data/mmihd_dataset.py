@@ -111,12 +111,9 @@ class MMIhdDataset(BaseDataset):
         mask = Image.open(mask_path).convert('1')
 
         clip_image = self.preprocess(Image.open(path)).unsqueeze(0)
-        image_features = self.clip_model.encode_image(clip_image)
-        print('clip image features shape: ', image_features.shape)
+        image_features = torch.squeeze(self.clip_model.encode_image(clip_image))
         generated = torch.autograd.Variable(image_features, requires_grad=False)
         image_features = generated.data
-        # fg_features = image_features
-        # img_features = torch.cat([image_features, fg_features], 0)
 
         # tokens = clip.tokenize([self.img_caption_dic[img_name], self.img_reg_dic[img_name]])
         # text_features = self.text_model.encode_text(tokens).reshape(-1, 256)
@@ -143,7 +140,7 @@ class MMIhdDataset(BaseDataset):
         inputs = torch.cat([comp, mask], 0)
 
         return {'inputs': inputs, 'comp': comp, 'real': real,
-                'img_path': path, 'mask': mask, 'img_feat': img_features}
+                'img_path': path, 'mask': mask, 'img_feat': image_features}
 
     def __len__(self):
         """Return the total number of images."""

@@ -52,7 +52,7 @@ class MMHTGenerator(nn.Module):
         self.illumination_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_dim, opt.output_nc, opt.ngf, 'ln',
                                                opt.activ, pad_type=opt.pad_type)
         self.clip_linear = nn.Sequential(
-            nn.Linear(512, 1024),
+            nn.Linear(512, 256),
             nn.ReLU()
         )
         self.opt = opt
@@ -66,8 +66,7 @@ class MMHTGenerator(nn.Module):
                                                        src_key_padding_mask=None)
 
         light_embed = self.clip_feature(image)
-
-        img_feat = self.clip_linear(img_feat).reshape(-1, 8, 256).permute(1, 0, 2)
+        img_feat = self.clip_linear(img_feat).permute(1, 0, 2)
         illumination = self.illumination_render(img_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)
         # print('illumination shape: ', illumination.shape)
