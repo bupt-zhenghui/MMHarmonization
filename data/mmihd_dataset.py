@@ -47,11 +47,6 @@ class MMIhdDataset(BaseDataset):
         self.image_paths = []
         self.isTrain = opt.isTrain
         self.image_size = opt.crop_size
-
-        # Load text features
-        # self.img_caption_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
-        # Make sure to change it
-        # self.img_reg_dic = self.read_data(opt.dataset_root + opt.dataset_name + '_caption.txt')
         self.clip_model, self.preprocess = clip.load("ViT-B/32", device='cpu')
 
         if opt.isTrain:
@@ -77,8 +72,6 @@ class MMIhdDataset(BaseDataset):
             transforms.Normalize((0, 0, 0), (1, 1, 1))
         ]
         self.transforms = transforms.Compose(transform_list)
-        # print(len(self.image_paths))
-        # assert 1==0
 
     def __getitem__(self, index):
         """Return a data point and its metadata information.
