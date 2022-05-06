@@ -5,9 +5,8 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as tf
 from PIL import Image
-from d2l import torch as d2l
-import clip
 
+import clip
 from data.base_dataset import BaseDataset
 
 
@@ -113,10 +112,11 @@ class MMIhdDataset(BaseDataset):
 
         clip_image = self.preprocess(Image.open(path)).unsqueeze(0)
         image_features = self.clip_model.encode_image(clip_image)
+        print('clip image features shape: ', image_features.shape)
         generated = torch.autograd.Variable(image_features, requires_grad=False)
         image_features = generated.data
-        fg_features = image_features
-        img_features = torch.cat([image_features, fg_features], 0)
+        # fg_features = image_features
+        # img_features = torch.cat([image_features, fg_features], 0)
 
         # tokens = clip.tokenize([self.img_caption_dic[img_name], self.img_reg_dic[img_name]])
         # text_features = self.text_model.encode_text(tokens).reshape(-1, 256)

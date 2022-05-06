@@ -192,37 +192,6 @@ class DHTGenerator(nn.Module):
         return harmonized, reflectance, illumination
 
 
-def load_pretrained_model(pretrained_model, num_hiddens, ffn_num_hiddens,
-                          num_heads, num_layers, dropout, max_len, devices):
-    data_dir = '../data/bert.small.torch'
-    vocab = d2l.Vocab()
-    vocab.idx_to_token = json.load(open(os.path.join(data_dir,
-                                                     'vocab.json')))
-    vocab.token_to_idx = {token: idx for idx, token in enumerate(
-        vocab.idx_to_token)}
-    bert = d2l.BERTModel(len(vocab), num_hiddens, norm_shape=[256],
-                         ffn_num_input=256, ffn_num_hiddens=ffn_num_hiddens,
-                         num_heads=4, num_layers=2, dropout=0.2,
-                         max_len=max_len, key_size=256, query_size=256,
-                         value_size=256, hid_in_features=256,
-                         mlm_in_features=256, nsp_in_features=256)
-    bert.load_state_dict(torch.load(os.path.join(data_dir,
-                                                 'pretrained.params')))
-    return bert, vocab
-
-
-class BERTClassifier(nn.Module):
-    def __init__(self, bert):
-        super(BERTClassifier, self).__init__()
-        self.encoder = bert.encoder
-        self.hidden = bert.hidden
-
-    def forward(self, inputs):
-        tokens_X, segments_X, valid_lens_x = inputs
-        encoded_X = self.encoder(tokens_X, segments_X, valid_lens_x)
-        return self.hidden(encoded_X)
-
-
 class GlobalLighting(nn.Module):
     def __init__(self, light_element=128, light_mlp_dim=8, norm=None, activ=None, pad_type='zero', opt=None):
 
