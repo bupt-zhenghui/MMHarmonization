@@ -4,3 +4,4 @@ checkpoints/*
 results/*
 dataset/*
 *.DS_Store*
+tmp_test.py

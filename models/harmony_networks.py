@@ -55,10 +55,11 @@ class MMHTGenerator(nn.Module):
             nn.Linear(512, 256),
             nn.ReLU()
         )
+        self.mask_embedding_linear = nn.Linear(1, 512)
         self.opt = opt
 
     def forward(self, inputs=None, image=None, pixel_pos=None, patch_pos=None, mask_r=None, mask=None,
-                img_feat=None, layers=[], encode_only=False):
+                img_feat=None, mask_embedding=None, layers=[], encode_only=False):
         r_content = self.reflectance_enc(inputs)
         bs, c, h, w = r_content.size()
 
@@ -66,6 +67,13 @@ class MMHTGenerator(nn.Module):
                                                        src_key_padding_mask=None)
 
         light_embed = self.clip_feature(image)
+
+        # mask embedding
+        print('img_feat before:', img_feat.shape)
+        print('mask_embedding shape:', mask_embedding.shape)
+        img_feat = img_feat + self.mask_embedding_linear(mask_embedding)
+        print('img_feat after:', img_feat.shape)
+
         img_feat = self.clip_linear(img_feat).permute(1, 0, 2)
         illumination = self.illumination_render(img_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)

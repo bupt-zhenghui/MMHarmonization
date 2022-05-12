@@ -65,6 +65,7 @@ class mmhtModel(BaseModel):
         self.mask_r = F.interpolate(self.mask, size=[64, 64])
         self.revert_mask = 1 - self.mask
         self.img_feat = input['img_feat'].to(self.device)
+        self.mask_embedding = input['mask_embedding'].to(self.device)
 
     def data_dependent_initialize(self, data):
         pass
@@ -81,7 +82,8 @@ class mmhtModel(BaseModel):
                                                                          pixel_pos=self.pixel_pos.detach(),
                                                                          patch_pos=self.patch_pos.detach(),
                                                                          mask_r=self.mask_r, mask=self.mask,
-                                                                         img_feat=self.img_feat)
+                                                                         img_feat=self.img_feat,
+                                                                         mask_embedding=self.mask_embedding)
         if not self.isTrain:
             self.harmonized = self.comp * (1 - self.mask) + self.harmonized * self.mask
 

@@ -18,9 +18,9 @@ def PatchMaskEmbedding(patch_size=32, img_size=224):
                 for jj in range(patch_size):
                     if mask[i + ii, j + jj] == 1: cur_cnt += 1
             res_list.append(1 - cur_cnt / (patch_size * patch_size))
-    res_list.insert(0, 1 - sum(res_list) / len(res_list))
+    res_list.insert(0, sum(res_list) / len(res_list))
     patch_mask_tensor = torch.tensor(res_list)
-    print(patch_mask_tensor.shape)
+    print(torch.unsqueeze(patch_mask_tensor, 1).shape)
     print(patch_mask_tensor)
     return patch_mask_tensor
 

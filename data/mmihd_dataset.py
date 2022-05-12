@@ -130,7 +130,7 @@ class MMIhdDataset(BaseDataset):
 
         # Add patch mask embedding
         mask_embedding = PatchMaskEmbedding(mask)
-        image_features = mask_embedding * image_features
+        # image_features = mask_embedding * image_features
 
         # comp = real
         # mask = torch.zeros_like(mask)
@@ -139,7 +139,8 @@ class MMIhdDataset(BaseDataset):
 
         return {'inputs': inputs, 'comp': comp, 'real': real,
                 'img_path': path, 'mask': mask,
-                'img_feat': image_features}
+                'img_feat': image_features,
+                'mask_embedding': mask_embedding}
 
     def __len__(self):
         """Return the total number of images."""
