@@ -3,3 +3,4 @@
 checkpoints/*
 results/*
 dataset/*
+*.DS_Store*

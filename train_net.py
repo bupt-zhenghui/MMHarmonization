@@ -32,10 +32,6 @@ def train(cfg):
     postion_embedding = util.PositionEmbeddingSine(cfg)
     patch_pos = util.PatchPositionEmbeddingSine(cfg)
 
-    print('position embedding shape:', postion_embedding.shape)
-    print('patch position shape:', patch_pos.shape)
-    return
-
     model = create_model(cfg)  # create a model given cfg.model and other options
     model.set_position(postion_embedding, patch_pos=patch_pos)
     # model.setup(cfg)               # regular setup: load and print networks; create schedulers

@@ -4,6 +4,7 @@ from __future__ import print_function
 import matplotlib.font_manager as fm  # to create font
 import numpy
 import torch.nn as nn
+import torchvision.transforms.functional as tf
 # from PIL import Image
 from PIL import ImageDraw, ImageFont
 
@@ -709,6 +710,21 @@ def PatchPositionEmbeddingSine(opt):
     pos_y = torch.stack((pos_y[:, :, 0::2].sin(), pos_y[:, :, 1::2].cos()), dim=3).flatten(2)
     pos = torch.cat((pos_y, pos_x), dim=2).permute(2, 0, 1)
     return pos
+
+
+def PatchMaskEmbedding(mask, patch_size=32, img_size=224):
+    mask = torch.squeeze(tf.resize(mask, [img_size, img_size]))
+    res_list = []
+    for i in range(0, img_size, patch_size):
+        for j in range(0, img_size, patch_size):
+            cur_cnt = 0
+            for ii in range(patch_size):
+                for jj in range(patch_size):
+                    if mask[i + ii, j + jj] == 1: cur_cnt += 1
+            res_list.append(1 - cur_cnt / (patch_size * patch_size))
+    res_list.insert(0, 1 - sum(res_list) / len(res_list))
+    patch_mask_tensor = torch.tensor(res_list)
+    return torch.unsqueeze(patch_mask_tensor, 1)
 
 
 def reconstructfrompatch(image, channel):

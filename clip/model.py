@@ -217,16 +217,21 @@ class VisionTransformer(nn.Module):
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
     def forward(self, x: torch.Tensor):
+        # print('init_x:', x.shape)
         x = self.conv1(x)  # shape = [*, width, grid, grid]
+        # print('after conv1:', x.shape)
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        # print('after reshape:', x.shape)
         x = torch.cat(
             [self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
              x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+        # print('after concat:', x.shape)
         x = x + self.positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
+        # print('before transformer:', x.shape)
         x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
 

@@ -8,6 +8,7 @@ from PIL import Image
 
 import clip
 from data.base_dataset import BaseDataset
+from util.util import PatchMaskEmbedding
 
 
 class MMIhdDataset(BaseDataset):
@@ -127,13 +128,18 @@ class MMIhdDataset(BaseDataset):
         # mask = 1-mask
         real = self.transforms(real)
 
+        # Add patch mask embedding
+        mask_embedding = PatchMaskEmbedding(mask)
+        image_features = mask_embedding * image_features
+
         # comp = real
         # mask = torch.zeros_like(mask)
         # inputs=torch.cat([real,mask],0)
         inputs = torch.cat([comp, mask], 0)
 
         return {'inputs': inputs, 'comp': comp, 'real': real,
-                'img_path': path, 'mask': mask, 'img_feat': image_features}
+                'img_path': path, 'mask': mask,
+                'img_feat': image_features}
 
     def __len__(self):
         """Return the total number of images."""
