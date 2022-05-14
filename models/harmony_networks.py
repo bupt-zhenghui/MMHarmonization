@@ -69,10 +69,7 @@ class MMHTGenerator(nn.Module):
         light_embed = self.clip_feature(image)
 
         # mask embedding
-        print('img_feat before:', img_feat.shape)
-        print('mask_embedding shape:', mask_embedding.shape)
         img_feat = img_feat + self.mask_embedding_linear(mask_embedding)
-        print('img_feat after:', img_feat.shape)
 
         img_feat = self.clip_linear(img_feat).permute(1, 0, 2)
         illumination = self.illumination_render(img_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
