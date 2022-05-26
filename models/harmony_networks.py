@@ -1,7 +1,4 @@
 import math
-import json
-from d2l import torch as d2l
-import clip
 
 import torch.nn as nn
 from einops.layers.torch import Rearrange
@@ -35,8 +32,8 @@ class MMHTGenerator(nn.Module):
         self.reflectance_dim = 256
         self.reflectance_enc = ContentEncoder(opt.n_downsample, 0, opt.input_nc + 1, self.reflectance_dim, opt.ngf,
                                               'in', opt.activ, pad_type=opt.pad_type)
-        # self.reflectance_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_enc.output_dim, opt.output_nc,
-        #                                       opt.ngf, 'ln', opt.activ, pad_type=opt.pad_type)
+        self.reflectance_dec = ContentDecoder(opt.n_downsample, 0, self.reflectance_enc.output_dim, opt.output_nc,
+                                              opt.ngf, 'ln', opt.activ, pad_type=opt.pad_type)
 
         self.reflectance_transformer_enc = transformer.TransformerEncoders(self.reflectance_dim,
                                                                            nhead=opt.tr_r_enc_head,
@@ -75,16 +72,16 @@ class MMHTGenerator(nn.Module):
         illumination = self.illumination_render(img_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)
         # print('illumination shape: ', illumination.shape)
-        # reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
-        # reflectance = self.reflectance_dec(reflectance)
-        # reflectance = reflectance / 2 + 0.5
+        reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
+        reflectance = self.reflectance_dec(reflectance)
+        reflectance = reflectance / 2 + 0.5
 
         illumination = illumination.permute(1, 2, 0).view(bs, c, h, w)
         # print('illumination permute: ', illumination.shape)
         illumination = self.illumination_dec(illumination)
-        # illumination = illumination / 2 + 0.5
+        illumination = illumination / 2 + 0.5
 
-        harmonized = reflectance = illumination
+        harmonized = reflectance * illumination
         return harmonized, reflectance, illumination
 
 

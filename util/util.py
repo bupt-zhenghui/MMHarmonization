@@ -891,3 +891,16 @@ def saveonefeaturetoheatmap(path, features, mask=None):
     scatter_fig = fig.get_figure()
     scatter_fig.savefig(path + '00000.png', dpi=100)
     scatter_fig.clf()
+
+
+def get_ihd_training_data(dataset_root, is_train=True):
+    image_path = []
+    dataset_name = ['HAdobe5k', 'HCOCO', 'Hday2night', 'HFlickr']
+    for dataset in dataset_name:
+        dataset_dir = dataset_root + '/' + dataset + '/'
+        assert os.path.isdir(dataset_dir), "ERROR: Make sure {} is in IHD Dataset directory".format(dataset)
+        train_file = dataset_dir + dataset + ('_train.txt' if is_train else '_test.txt')
+        with open(train_file, 'r') as f:
+            for line in f.readlines():
+                image_path.append(os.path.join(dataset_dir, 'composite_images', line.rstrip()))
+    return image_path

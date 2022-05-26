@@ -8,6 +8,7 @@ from PIL import Image
 
 import clip
 from data.base_dataset import BaseDataset
+from util import util
 from util.util import PatchMaskEmbedding
 
 
@@ -53,17 +54,23 @@ class MMIhdDataset(BaseDataset):
         if opt.isTrain:
             # self.real_ext='.jpg'
             print('loading training file')
-            self.trainfile = opt.dataset_root + opt.dataset_name + '_train.txt'
-            with open(self.trainfile, 'r') as f:
-                for line in f.readlines():
-                    self.image_paths.append(os.path.join(opt.dataset_root, 'composite_images', line.rstrip()))
+            if opt.dataset_name == 'ihd':
+                self.image_paths = util.get_ihd_training_data(opt.dataset_root)
+            else:
+                self.trainfile = opt.dataset_root + opt.dataset_name + '_train.txt'
+                with open(self.trainfile, 'r') as f:
+                    for line in f.readlines():
+                        self.image_paths.append(os.path.join(opt.dataset_root, 'composite_images', line.rstrip()))
         elif not opt.isTrain:
             # self.real_ext='.jpg'
             print('loading test file')
-            self.trainfile = opt.dataset_root + opt.dataset_name + '_test.txt'
-            with open(self.trainfile, 'r') as f:
-                for line in f.readlines():
-                    self.image_paths.append(os.path.join(opt.dataset_root, 'composite_images', line.rstrip()))
+            if opt.dataset_name == 'ihd':
+                self.image_paths = util.get_ihd_training_data(opt.dataset_root, is_train=False)
+            else:
+                self.trainfile = opt.dataset_root + opt.dataset_name + '_test.txt'
+                with open(self.trainfile, 'r') as f:
+                    for line in f.readlines():
+                        self.image_paths.append(os.path.join(opt.dataset_root, 'composite_images', line.rstrip()))
                     # print(line.rstrip())
         # get the image paths of your dataset; You can call sorted(make_dataset(self.root, opt.max_dataset_size)) to
         # get all the image paths under the directory self.root define the default transform function. You can use
