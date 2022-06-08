@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument('--dataroot', type=str, default='', help='dataset_dir')
     parser.add_argument('--result_root', type=str, default='', help='dataset_dir')
     parser.add_argument('--dataset_name', type=str, default='ihd', help='dataset_name')
-    parser.add_argument('--evaluation_type', type=str, default="our", help='evaluation type')
+    parser.add_argument('--evaluation_type', type=str, default="ori", help='evaluation type')
     parser.add_argument('--ssim_window_size', type=int, default=11, help='ssim window size')
 
     return parser.parse_args()

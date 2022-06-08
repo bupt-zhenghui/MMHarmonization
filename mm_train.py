@@ -1,4 +1,5 @@
 import torch
+import time
 
 from util.misc import launch_job
 from train_net import train
@@ -16,4 +17,8 @@ def main():
 
 
 if __name__ == "__main__":
+    start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     main()
+    end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    print("start time:", start_time)
+    print("end time:", end_time)
