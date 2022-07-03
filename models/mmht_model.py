@@ -82,7 +82,7 @@ class mmhtModel(BaseModel):
                                                                          pixel_pos=self.pixel_pos.detach(),
                                                                          patch_pos=self.patch_pos.detach(),
                                                                          mask_r=self.mask_r, mask=self.mask,
-                                                                         img_feat=self.img_feat,
+                                                                         clip_image=self.clip_image,
                                                                          mask_embedding=self.mask_embedding)
         if not self.isTrain:
             self.harmonized = self.comp * (1 - self.mask) + self.harmonized * self.mask
