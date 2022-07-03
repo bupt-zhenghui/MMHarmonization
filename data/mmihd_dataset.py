@@ -49,7 +49,8 @@ class MMIhdDataset(BaseDataset):
         self.image_paths = []
         self.isTrain = opt.isTrain
         self.image_size = opt.crop_size
-        self.clip_model, self.preprocess = clip.load("ViT-B/32", device='cpu')
+        # self.clip_model, self.preprocess = clip.load("ViT-B/32", device='cpu')
+        _, self.preprocess = clip.load("ViT-B/32", device='cpu')
 
         if opt.isTrain:
             # self.real_ext='.jpg'
@@ -111,10 +112,12 @@ class MMIhdDataset(BaseDataset):
         real = Image.open(target_path).convert('RGB')
         mask = Image.open(mask_path).convert('1')
 
-        clip_image = self.preprocess(Image.open(path)).unsqueeze(0)
-        image_features = torch.squeeze(self.clip_model.encode_image(clip_image))
-        generated = torch.autograd.Variable(image_features, requires_grad=False)
-        image_features = generated.data
+        # visual clip
+        clip_image = self.preprocess(Image.open(path))
+        # clip_image = self.preprocess(Image.open(path)).unsqueeze(0)
+        # image_features = torch.squeeze(self.clip_model.encode_image(clip_image))
+        # generated = torch.autograd.Variable(image_features, requires_grad=False)
+        # image_features = generated.data
 
         # tokens = clip.tokenize([self.img_caption_dic[img_name], self.img_reg_dic[img_name]])
         # text_features = self.text_model.encode_text(tokens).reshape(-1, 256)
@@ -146,7 +149,7 @@ class MMIhdDataset(BaseDataset):
 
         return {'inputs': inputs, 'comp': comp, 'real': real,
                 'img_path': path, 'mask': mask,
-                'img_feat': image_features,
+                'clip_image': clip_image,
                 'mask_embedding': mask_embedding}
 
     def __len__(self):

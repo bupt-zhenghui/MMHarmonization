@@ -7,6 +7,8 @@ from util.tools import *
 from . import base_networks as networks_init
 from . import transformer
 
+import clip
+
 
 def define_G(netG='retinex', init_type='normal', init_gain=0.02, opt=None):
     """Create a generator
@@ -40,6 +42,8 @@ class MMHTGenerator(nn.Module):
                                                                            num_encoder_layers=opt.tr_r_enc_layers,
                                                                            dim_feedforward=self.reflectance_dim * opt.dim_forward,
                                                                            activation=opt.tr_act)
+        self.clip_model, _ = clip.load("ViT-B/32")
+
         self.clip_feature = ClipFeature(light_element=opt.light_element, light_mlp_dim=self.reflectance_dim)
 
         self.illumination_render = transformer.TransformerDecoders(self.reflectance_dim, nhead=opt.tr_i_dec_head,
@@ -56,7 +60,7 @@ class MMHTGenerator(nn.Module):
         self.opt = opt
 
     def forward(self, inputs=None, image=None, pixel_pos=None, patch_pos=None, mask_r=None, mask=None,
-                img_feat=None, mask_embedding=None, layers=[], encode_only=False):
+                clip_image=None, mask_embedding=None, layers=[], encode_only=False):
         r_content = self.reflectance_enc(inputs)
         bs, c, h, w = r_content.size()
 
@@ -66,6 +70,8 @@ class MMHTGenerator(nn.Module):
         light_embed = self.clip_feature(image)
 
         # mask embedding
+        print("clip image shape:", clip_image.shape)
+        img_feat = self.clip_model.encode_image(clip_image)
         img_feat = img_feat + self.mask_embedding_linear(mask_embedding)
 
         img_feat = self.clip_linear(img_feat).permute(1, 0, 2)

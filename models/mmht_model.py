@@ -64,7 +64,7 @@ class mmhtModel(BaseModel):
         self.image_paths = input['img_path']
         self.mask_r = F.interpolate(self.mask, size=[64, 64])
         self.revert_mask = 1 - self.mask
-        self.img_feat = input['img_feat'].to(self.device)
+        self.clip_image = input['clip_image'].to(self.device)
         self.mask_embedding = input['mask_embedding'].to(self.device)
 
     def data_dependent_initialize(self, data):
