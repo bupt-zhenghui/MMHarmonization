@@ -439,4 +439,4 @@ def build_model(state_dict: dict):
     convert_weights(model)
     model.load_state_dict(state_dict)
     # print('here in build model...')
-    return model
+    return model.eval()
