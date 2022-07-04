@@ -259,14 +259,7 @@ class TextLighting(nn.Module):
         patch_size = opt.patch_size
         image_size = opt.crop_size
         assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
-        num_patches = (image_size // patch_size) ** 2
-        patch_dim = opt.input_nc * patch_size ** 2
-        self.to_patch = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
-        )
-        self.patch_embedding = nn.Sequential(
-            nn.Linear(patch_dim, light_mlp_dim),
-        )
+
         dim = light_mlp_dim
         if opt.light_with_tre:
             self.transformer_enc = transformer.TransformerEncoders(dim, nhead=opt.tr_l_enc_head,
@@ -285,20 +278,10 @@ class TextLighting(nn.Module):
         tgt = torch.zeros_like(light_embed)
 
         src_key_padding_mask = None
-        if use_mask:
-            mask_patch = self.to_patch(mask)
-            print('mask_patch shape: ', mask_patch.shape)
-            mask_sum = torch.sum(mask_patch, dim=2)
-            print('mask_sum shape: ', mask_sum.shape)
-            print(mask_sum[0])
-            src_key_padding_mask = mask_sum.to(bool)
-            print('key_padding shape: ', src_key_padding_mask.shape)
-
         # if self.light_with_tre:
         #     inputs = self.transformer_enc(inputs, src_pos=pos, src_key_padding_mask=src_key_padding_mask)
         light = self.transformer_dec(inputs, tgt, src_pos=pos, tgt_pos=light_embed,
                                      src_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=None)
-        # print('light shape: ', light.shape)
         return light, light_embed
 
 
