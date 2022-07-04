@@ -29,16 +29,19 @@ def clip_test():
     img_path = '/Users/zhenghui/Downloads/Image_Harmonization_Dataset/HAdobe5k/composite_images/a0002_1_1.jpg'
     mask_path = '/Users/zhenghui/Downloads/Image_Harmonization_Dataset/HAdobe5k/masks/a0005_1.png'
     clip_model, preprocess = clip.load("ViT-B/32", device='cpu')
-    # clip_image = preprocess(Image.open(img_path)).unsqueeze(0)
+    # print(clip_model)
+    total = sum([param.nelement() for param in clip_model.parameters()])
+
+    print("Number of parameter: %.2fM" % (total / 1e6))
     # print(clip_image.shape)
     #
     # image_features = torch.squeeze(clip_model.encode_image(clip_image))
     # print(image_features.shape)
 
-    mask_image = preprocess(Image.open(mask_path).convert('1'))
-    print(mask_image.shape)
+    # mask_image = preprocess(Image.open(mask_path).convert('1'))
+    # print(mask_image.shape)
 
 
 if __name__ == '__main__':
-    # clip_test()
-    PatchMaskEmbedding()
+    clip_test()
+    # PatchMaskEmbedding()
