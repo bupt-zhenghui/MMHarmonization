@@ -42,6 +42,8 @@ class MMHTGenerator(nn.Module):
                                                                            activation=opt.tr_act)
         self.clip_feature = ClipFeature(light_element=opt.light_element, light_mlp_dim=self.reflectance_dim)
 
+        self.light_generator = TextLighting(light_element=opt.light_element, light_mlp_dim=self.reflectance_dim,
+                                            opt=opt)
         self.illumination_render = transformer.TransformerDecoders(self.reflectance_dim, nhead=opt.tr_i_dec_head,
                                                                    num_decoder_layers=opt.tr_i_dec_layers,
                                                                    dim_feedforward=self.reflectance_dim * opt.dim_forward,
@@ -67,9 +69,10 @@ class MMHTGenerator(nn.Module):
 
         # mask embedding
         img_feat = img_feat + self.mask_embedding_linear(mask_embedding)
-
         img_feat = self.clip_linear(img_feat).permute(1, 0, 2)
-        illumination = self.illumination_render(img_feat, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
+        light_code, light_embed = self.light_generator(img_feat, mask=mask,
+                                                       use_mask=self.opt.light_use_mask)
+        illumination = self.illumination_render(light_code, reflectance, src_pos=light_embed, tgt_pos=pixel_pos,
                                                 src_key_padding_mask=None, tgt_key_padding_mask=None)
         # print('illumination shape: ', illumination.shape)
         reflectance = reflectance.permute(1, 2, 0).view(bs, c, h, w)
@@ -242,6 +245,58 @@ class GlobalLighting(nn.Module):
         if self.light_with_tre:
             input_patch = self.transformer_enc(input_patch, src_pos=pos, src_key_padding_mask=src_key_padding_mask)
         light = self.transformer_dec(input_patch, tgt, src_pos=pos, tgt_pos=light_embed,
+                                     src_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=None)
+        # print('light shape: ', light.shape)
+        return light, light_embed
+
+
+class TextLighting(nn.Module):
+    def __init__(self, light_element=128, light_mlp_dim=8, norm=None, activ=None, pad_type='zero', opt=None):
+
+        super(TextLighting, self).__init__()
+        self.light_with_tre = opt.light_with_tre
+
+        patch_size = opt.patch_size
+        image_size = opt.crop_size
+        assert image_size % patch_size == 0, 'Image dimensions must be divisible by the patch size.'
+        num_patches = (image_size // patch_size) ** 2
+        patch_dim = opt.input_nc * patch_size ** 2
+        self.to_patch = nn.Sequential(
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=patch_size, p2=patch_size),
+        )
+        self.patch_embedding = nn.Sequential(
+            nn.Linear(patch_dim, light_mlp_dim),
+        )
+        dim = light_mlp_dim
+        if opt.light_with_tre:
+            self.transformer_enc = transformer.TransformerEncoders(dim, nhead=opt.tr_l_enc_head,
+                                                                   num_encoder_layers=opt.tr_l_enc_layers,
+                                                                   dim_feedforward=dim * 2, dropout=0.0,
+                                                                   activation=opt.tr_act)
+        self.transformer_dec = transformer.TransformerDecoders(dim, nhead=opt.tr_l_dec_head,
+                                                               num_decoder_layers=opt.tr_l_dec_layers,
+                                                               dim_feedforward=dim * 2, dropout=0.0,
+                                                               activation=opt.tr_act)
+        self.light_embed = nn.Embedding(light_element, dim)
+
+    def forward(self, inputs, mask=None, pos=None, multiple=False, use_mask=False):
+        _, b, _ = inputs.size()
+        light_embed = self.light_embed.weight.unsqueeze(1).repeat(1, b, 1)  # [27, 2, 256]
+        tgt = torch.zeros_like(light_embed)
+
+        src_key_padding_mask = None
+        if use_mask:
+            mask_patch = self.to_patch(mask)
+            print('mask_patch shape: ', mask_patch.shape)
+            mask_sum = torch.sum(mask_patch, dim=2)
+            print('mask_sum shape: ', mask_sum.shape)
+            print(mask_sum[0])
+            src_key_padding_mask = mask_sum.to(bool)
+            print('key_padding shape: ', src_key_padding_mask.shape)
+
+        # if self.light_with_tre:
+        #     inputs = self.transformer_enc(inputs, src_pos=pos, src_key_padding_mask=src_key_padding_mask)
+        light = self.transformer_dec(inputs, tgt, src_pos=pos, tgt_pos=light_embed,
                                      src_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=None)
         # print('light shape: ', light.shape)
         return light, light_embed
