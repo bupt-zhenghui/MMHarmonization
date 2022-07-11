@@ -56,12 +56,15 @@ class mmhtModel(BaseModel):
                 ]
                 return param_group
 
-            self.optimizer_G = torch.optim.Adam(get_group_parameters(), betas=(opt.beta1, 0.999))
+            # self.optimizer_G = torch.optim.Adam(get_group_parameters(), betas=(opt.beta1, 0.999))
 
             # print(list(base_params))
             # print(clip_params)
             # exit()
-            # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+            for param in self.netG.module.clip_model.parameters():
+                param.requires_grad = False
+
+            self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
 
     def get_group_parameters(self, model):
