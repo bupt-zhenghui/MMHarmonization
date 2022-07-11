@@ -39,13 +39,25 @@ class mmhtModel(BaseModel):
             self.criterionL1 = torch.nn.L1Loss()
             self.criterionL2 = torch.nn.MSELoss()
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
-            clip_params = list(map(id, self.netG.module.clip_model.parameters()))
-            base_params = filter(lambda p: id(p) not in clip_params, self.netG.module.parameters())
-            # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-            self.optimizer_G = torch.optim.Adam([
-                {'params': base_params},
-                {'params': self.netG.module.clip_model.parameters(), 'lr': 0.0},
-            ], lr=opt.lr, betas=(opt.beta1, 0.999))
+            if torch.cuda.is_available():
+                clip_params = list(map(id, self.netG.module.clip_model.parameters()))
+                base_params = filter(lambda p: id(p) not in clip_params, self.netG.module.parameters())
+                # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+                self.optimizer_G = torch.optim.Adam([
+                    {'params': self.netG.module.clip_model.parameters(), 'lr': 0.0},
+                ], lr=opt.lr, betas=(opt.beta1, 0.999))
+            else:
+                clip_params = list(map(id, self.netG.clip_model.parameters()))
+                base_params = filter(lambda p: id(p) not in clip_params, self.netG.parameters())
+                # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+                self.optimizer_G = torch.optim.Adam([
+                    {'params': base_params},
+                    {'params': self.netG.clip_model.parameters(), 'lr': 0.0},
+                ], lr=opt.lr, betas=(opt.beta1, 0.999))
+
+            print(list(base_params))
+            print(clip_params)
+            exit()
             # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
 
