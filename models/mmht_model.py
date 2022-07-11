@@ -43,7 +43,7 @@ class mmhtModel(BaseModel):
 
             def get_group_parameters():
                 if torch.cuda.is_available():
-                    params = list(self.netG.module.named_parameters())
+                    params = list(self.netG.named_parameters())
                 else:
                     params = list(self.netG.named_parameters())
                 small_lr = ['clip_model']
