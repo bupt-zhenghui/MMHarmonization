@@ -39,12 +39,12 @@ class mmhtModel(BaseModel):
             self.criterionL1 = torch.nn.L1Loss()
             self.criterionL2 = torch.nn.MSELoss()
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
-            clip_params = list(map(id, self.netG.clip_model.parameters()))
-            base_params = filter(lambda p: id(p) not in clip_params, self.netG.parameters())
+            clip_params = list(map(id, self.netG.clip_model.module.parameters()))
+            base_params = filter(lambda p: id(p) not in clip_params, self.netG.module.parameters())
             # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizer_G = torch.optim.Adam([
                 {'params': base_params},
-                {'params': self.netG.clip_model.parameters(), 'lr': opt.lr * 0.00001},
+                {'params': self.netG.clip_model.module.parameters(), 'lr': opt.lr * 0.00001},
             ], lr=opt.lr, betas=(opt.beta1, 0.999))
             # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
