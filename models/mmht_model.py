@@ -42,13 +42,9 @@ class mmhtModel(BaseModel):
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
 
             def get_group_parameters():
-                if torch.cuda.is_available():
-                    params = list(self.netG.named_parameters())
-                else:
-                    params = list(self.netG.named_parameters())
-                small_lr = ['clip_model']
-                clip_param = [p for n, p in params if any(nd in n for nd in small_lr)]
-                base_param = [p for n, p in params if not any(nd in n for nd in small_lr)]
+                params = list(self.netG.named_parameters())
+                clip_param = [p for n, p in params if 'clip_model' in n]
+                base_param = [p for n, p in params if 'clip_model' not in n]
 
                 param_group = [
                     {'params': clip_param, 'lr': 0.0},
@@ -56,33 +52,13 @@ class mmhtModel(BaseModel):
                 ]
                 return param_group
 
-            # self.optimizer_G = torch.optim.Adam(get_group_parameters(), betas=(opt.beta1, 0.999))
+            self.optimizer_G = torch.optim.Adam(get_group_parameters())
 
-            # print(list(base_params))
-            # print(clip_params)
-            # exit()
-            for param in self.netG.module.clip_model.parameters():
-                param.requires_grad = False
-
-            self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+            # for param in self.netG.module.clip_model.parameters():
+            #     param.requires_grad = False
+            #
+            # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
-
-    def get_group_parameters(self, model):
-        params = list(model.named_parameters())
-        no_decay = ['bias,', 'LayerNorm']
-        other = ['lstm', 'linear_layer']
-        no_main = no_decay + other
-
-        param_group = [
-            {'params': [p for n, p in params if not any(nd in n for nd in no_main)], 'weight_decay': 1e-2, 'lr': 1e-5},
-            {'params': [p for n, p in params if not any(nd in n for nd in other) and any(nd in n for nd in no_decay)],
-             'weight_decay': 0, 'lr': 1e-5},
-            {'params': [p for n, p in params if any(nd in n for nd in other) and any(nd in n for nd in no_decay)],
-             'weight_decay': 0, 'lr': 1e-2},
-            {'params': [p for n, p in params if any(nd in n for nd in other) and not any(nd in n for nd in no_decay)],
-             'weight_decay': 1e-2, 'lr': 1e-2},
-        ]
-        return param_group
 
     def set_position(self, pos, patch_pos=None):
         b = self.opt.batch_size
