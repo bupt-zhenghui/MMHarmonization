@@ -47,10 +47,12 @@ class mmhtModel(BaseModel):
                 else:
                     params = list(self.netG.named_parameters())
                 small_lr = ['clip_model']
+                clip_param = [n for n, p in params if any(nd in n for nd in small_lr)]
+                base_param = [n for n, p in params if not any(nd in n for nd in small_lr)]
 
                 param_group = [
-                    {'params': [p for n, p in params if not any(nd in n for nd in small_lr)], 'lr': opt.lr},
-                    {'params': [p for n, p in params if any(nd in n for nd in small_lr)], 'lr': 0.0},
+                    {'params': clip_param, 'lr': 0.0},
+                    {'params': base_param, 'lr': opt.lr},
                 ]
                 return param_group
 
