@@ -54,8 +54,8 @@ class mmhtModel(BaseModel):
 
             # self.optimizer_G = torch.optim.Adam(get_group_parameters())
 
-            # for param in self.netG.module.clip_model.parameters():
-            #     param.requires_grad = False
+            for param in self.netG.module.clip_model.parameters():
+                param.requires_grad = False
 
             self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
