@@ -44,7 +44,7 @@ class mmhtModel(BaseModel):
             # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizer_G = torch.optim.Adam([
                 {'params': base_params},
-                {'params': self.netG.module.clip_model.parameters(), 'lr': opt.lr * 0.00001},
+                {'params': self.netG.module.clip_model.parameters(), 'lr': 0.0},
             ], lr=opt.lr, betas=(opt.beta1, 0.999))
             # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
