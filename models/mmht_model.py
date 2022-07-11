@@ -44,8 +44,9 @@ class mmhtModel(BaseModel):
                 base_params = filter(lambda p: id(p) not in clip_params, self.netG.module.parameters())
                 # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
                 self.optimizer_G = torch.optim.Adam([
+                    {'params': base_params, 'lr': opt.lr, 'betas': (opt.beta1, 0.999)},
                     {'params': self.netG.module.clip_model.parameters(), 'lr': 0.0},
-                ], lr=opt.lr, betas=(opt.beta1, 0.999))
+                ])
             else:
                 clip_params = list(map(id, self.netG.clip_model.parameters()))
                 base_params = filter(lambda p: id(p) not in clip_params, self.netG.parameters())
@@ -55,6 +56,9 @@ class mmhtModel(BaseModel):
                     {'params': self.netG.clip_model.parameters(), 'lr': 0.0},
                 ], lr=opt.lr, betas=(opt.beta1, 0.999))
 
+            print(list(base_params))
+            print(clip_params)
+            exit()
             # self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
 
